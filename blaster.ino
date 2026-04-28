@@ -34,8 +34,8 @@
 // (+1 for good measure)
 #define BATTERY_SETTLE_MICROS 10
 
-#define SOUND_FREQ_START_HZ 3000
-#define SOUND_FREQ_DEC_HZ 200
+#define SOUND_FREQ_START_HZ 4000
+#define SOUND_FREQ_DEC_HZ 100
 
 #define LED_TYPE WS2812B
 #define LED_COLOR_ORDER GRB
@@ -166,7 +166,7 @@ void disableLedStrip () {
 void fireBlaster () {
   int fireTone = SOUND_FREQ_START_HZ;
   for (int i = 0; i < RING_COUNT; i++) {
-    tone(BUZZER_OUT_PIN, fireTone);
+    ledcWriteTone(BUZZER_OUT_PIN, fireTone);
     // Disable targer ring
     writeRingColor(i, 0);
     // Fill in behind
@@ -174,12 +174,16 @@ void fireBlaster () {
       writeRingColor(i - 1, ringColor);
     }
     delay(ANIM_FIRE_DELAY_MILLIS);
+    fireTone -= SOUND_FREQ_DEC_HZ;
   }
   writeRingColor(RING_COUNT-1, ringColor);
 
   writeMuzzleColor(muzzleFlashColor);
+  ledcWriteTone(BUZZER_OUT_PIN, fireTone);
+
   delay(ANIM_FIRE_DELAY_MILLIS);
   writeMuzzleColor(0);
+  ledcWriteTone(BUZZER_OUT_PIN, 0);
 }
 
 // Blaster powering up sequence
@@ -212,8 +216,11 @@ void powerUp () {
 void powerDown () {
   FastLED.clear();
   FastLED.show();
+  Serial.println("Sleeping...");
   
   disableLedStrip();
+  // Wait for switch to release before setting up/entering sleep mode
+  while (digitalRead(SWITCH_IN_PIN) == LOW) {}
   startSleep();
 }
 
@@ -277,6 +284,8 @@ void setup() {
   pinMode(LED_POWER_EN_PIN, OUTPUT);
 
   digitalWrite(BATTERY_READ_EN_PIN, LOW);
+
+  ledcAttach(BUZZER_OUT_PIN, 4000, 12);
   
   enableLedStrip();
   // Short delay allowing leds to start up
